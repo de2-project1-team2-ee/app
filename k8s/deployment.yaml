@@ -28,10 +28,10 @@ spec:
       containers:
         - name: project-app
           # GitHub Actions CI가 이 값을 자동으로 업데이트합니다.
-          image: AWS_ACCOUNT_ID.dkr.ecr.ap-northeast-2.amazonaws.com/project-app:latest
+          # image: AWS_ACCOUNT_ID.dkr.ecr.ap-northeast-2.amazonaws.com/project-app:latest
+          image: 486053612615.dkr.ecr.eu-central-1.amazonaws.com/project-app:latest
           ports:
-            - containerPort: 8000  # FastAPI (uvicorn)
-
+            - containerPort: 8000
           # DB 접속 정보 (postgres-svc ClusterIP로 내부 통신)
           env:
             - name: DB_HOST
@@ -55,7 +55,6 @@ spec:
                   key: POSTGRES_PASSWORD
             - name: COUPON_TOTAL
               value: "300"
-
           resources:
             requests:
               cpu: "100m"
@@ -63,14 +62,12 @@ spec:
             limits:
               cpu: "500m"
               memory: "256Mi"
-
           readinessProbe:
             httpGet:
               path: /healthz
               port: 8000
             initialDelaySeconds: 5
             periodSeconds: 5
-
           livenessProbe:
             httpGet:
               path: /healthz
