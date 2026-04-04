@@ -6,7 +6,7 @@
 # 사전 준비 (GitHub Secrets 등록 필요)
 # Settings → Secrets → Actions 에서 아래 값 등록:
 #   AWS_ACCOUNT_ID   : AWS 계정 ID (예: 123456789012)
-#   AWS_REGION       : ap-northeast-2
+#   AWS_REGION       : eu-central-1
 #   ECR_REPOSITORY   : 이미지 저장소 이름 (예: project-app)
 #   MANIFESTS_REPO   : manifests 레포 이름 (예: your-org/project-manifests)
 #   MANIFESTS_TOKEN  : manifests 레포 push용 GitHub PAT
