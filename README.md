@@ -155,4 +155,4 @@ locust -f locustfile.py --host http://localhost:8000 \
 ## K8s 배포
 
 기존 프로젝트 인프라(EKS + ArgoCD)를 그대로 사용합니다.
-deployment.yaml의 이미지와 포트를 FastAPI 앱에 맞게 수정하면 됩니다.
+deployment.yaml의 이미지와 포트를 FastAPI 앱에 맞게 수정하면 됩니다.# CI/CD test
