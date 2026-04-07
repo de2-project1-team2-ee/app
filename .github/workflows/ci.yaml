@@ -3,13 +3,9 @@
 # GitHub Actions CI 파이프라인
 # 트리거: main 브랜치 push 시 자동 실행
 #
-# 사전 준비 (GitHub Secrets 등록 필요)
-# Settings → Secrets → Actions 에서 아래 값 등록:
-#   AWS_ACCOUNT_ID   : AWS 계정 ID (예: 123456789012)
-#   AWS_REGION       : eu-central-1
-#   ECR_REPOSITORY   : 이미지 저장소 이름 (예: project-app)
-#   MANIFESTS_REPO   : manifests 레포 이름 (예: your-org/project-manifests)
-#   MANIFESTS_TOKEN  : manifests 레포 push용 GitHub PAT
+# 사전 준비: Infra/07_deploy_app.sh 실행 시 자동 등록됨
+#   Variables: AWS_ACCOUNT_ID, AWS_REGION, ECR_REPOSITORY, MANIFESTS_REPO
+#   Secrets: MANIFESTS_TOKEN (PAT)
 # ──────────────────────────────────────────────
 name: CI - Build and Push to ECR
 
@@ -22,9 +18,9 @@ on:
       - main
 
 env:
-  AWS_REGION: ${{ secrets.AWS_REGION }}
-  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
-  ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  ECR_REGISTRY: ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com
+  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
   IMAGE_TAG: ${{ github.sha }}  # 커밋 SHA를 이미지 태그로 사용 (고유성 보장)
 
 jobs:
@@ -46,7 +42,7 @@ jobs:
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-role
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/github-actions-role
           aws-region: ${{ env.AWS_REGION }}
 
       # 3. ECR 로그인
@@ -68,7 +64,7 @@ jobs:
       #    ArgoCD가 이 변경을 감지하여 EKS에 자동 배포
       - name: Update image tag in manifests repo
         run: |
-          git clone https://x-access-token:${{ secrets.MANIFESTS_TOKEN }}@github.com/${{ secrets.MANIFESTS_REPO }}.git manifests
+          git clone https://x-access-token:${{ secrets.MANIFESTS_TOKEN }}@github.com/${{ vars.MANIFESTS_REPO }}.git manifests
           cd manifests
 
           # k8s/deployment.yaml의 image 태그를 새 커밋 SHA로 교체
