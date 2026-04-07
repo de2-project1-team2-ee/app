@@ -15,22 +15,7 @@
 """
 
 import uuid
-import logging
-from locust import HttpUser, task, between, events
-
-logger = logging.getLogger("locust.db")
-
-
-@events.test_start.add_listener
-def on_test_start(environment, **kwargs):
-    """테스트 시작 시 DB 연결 상태 확인"""
-    logger.info("=== 부하 테스트 시작 — DB 연결 상태 확인 ===")
-
-
-@events.test_stop.add_listener
-def on_test_stop(environment, **kwargs):
-    """테스트 종료 시 DB 연결 상태 최종 확인"""
-    logger.info("=== 부하 테스트 종료 ===")
+from locust import HttpUser, task, between
 
 
 class CouponUser(HttpUser):
@@ -39,18 +24,7 @@ class CouponUser(HttpUser):
     def on_start(self):
         """각 가상 사용자마다 고유 ID 생성 + DB 연결 확인"""
         self.user_id = f"load-{uuid.uuid4().hex[:8]}"
-        self._check_db_health()
-
-    def _check_db_health(self):
-        """DB 헬스체크 (/healthz) 호출 및 로그 출력"""
-        with self.client.get("/healthz", name="/healthz (DB check)", catch_response=True) as resp:
-            if resp.status_code == 200:
-                data = resp.json()
-                logger.info(f"[{self.user_id}] DB 연결 정상: {data}")
-                resp.success()
-            else:
-                logger.error(f"[{self.user_id}] DB 연결 실패: status={resp.status_code}, body={resp.text}")
-                resp.failure(f"DB unhealthy: {resp.status_code}")
+        pass
 
     @task
     def claim_coupon(self):
@@ -69,4 +43,4 @@ class CouponUser(HttpUser):
     @task(1)
     def check_db_connection(self):
         """주기적으로 DB 연결 상태 확인"""
-        self._check_db_health()
+        self.client.get("/healthz")

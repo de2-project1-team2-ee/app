@@ -28,7 +28,7 @@ async def start_queue() -> None:
     for i in range(QUEUE_WORKERS):
         task = asyncio.create_task(_worker(i), name=f"coupon-worker-{i}")
         _workers.append(task)
-    logger.info("쿠폰 큐 시작: workers=%d, max_size=%d", QUEUE_WORKERS, QUEUE_MAX_SIZE)
+    pass
 
 
 async def stop_queue() -> None:
@@ -37,7 +37,7 @@ async def stop_queue() -> None:
         w.cancel()
     await asyncio.gather(*_workers, return_exceptions=True)
     _workers.clear()
-    logger.info("쿠폰 큐 종료")
+    pass
 
 
 async def enqueue_coupon(user_id: str) -> dict:
@@ -58,8 +58,6 @@ async def enqueue_coupon(user_id: str) -> dict:
             "status": 503,
             "error": {"code": "QUEUE_FULL", "message": "대기열이 가득 찼습니다. 잠시 후 다시 시도해주세요"},
         }
-
-    logger.debug("큐 등록: user=%s, 대기=%d", user_id, _queue.qsize())
 
     try:
         result = await asyncio.wait_for(future, timeout=QUEUE_TIMEOUT)
@@ -83,7 +81,6 @@ async def _worker(worker_id: int) -> None:
             if not future.cancelled():
                 future.set_result(result)
         except Exception as exc:
-            logger.error("worker-%d 예외: %s", worker_id, exc, exc_info=True)
             if not future.cancelled():
                 future.set_result({
                     "success": False,

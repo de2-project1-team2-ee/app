@@ -4,10 +4,7 @@ DB 연결 풀 관리 + 테이블 초기화
 """
 
 import asyncpg
-import logging
 from config import config
-
-logger = logging.getLogger("hotdeal")
 
 pool: asyncpg.Pool | None = None
 
@@ -45,9 +42,7 @@ async def init_db() -> None:
                 "INSERT INTO coupon_event (total, remaining, is_open) VALUES ($1, $1, FALSE)",
                 config.COUPON_TOTAL,
             )
-            logger.info("쿠폰 이벤트 초기화 완료: %d장", config.COUPON_TOTAL)
-
-    logger.info("DB 커넥션 풀 생성 완료 (min=%d, max=%d)", config.DB_POOL_MIN, config.DB_POOL_MAX)
+            pass
 
 
 async def close_db() -> None:
@@ -55,7 +50,6 @@ async def close_db() -> None:
     global pool
     if pool:
         await pool.close()
-        logger.info("DB 커넥션 풀 종료")
 
 
 def get_pool() -> asyncpg.Pool:

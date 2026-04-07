@@ -21,7 +21,6 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
-logger = logging.getLogger("hotdeal")
 
 
 # ── 앱 라이프사이클 ──
@@ -29,11 +28,9 @@ logger = logging.getLogger("hotdeal")
 async def lifespan(app: FastAPI):
     await init_db()
     await start_queue()
-    logger.info("핫딜 쿠폰 서비스 시작")
     yield
     await stop_queue()
     await close_db()
-    logger.info("핫딜 쿠폰 서비스 종료")
 
 
 app = FastAPI(title="HotDeal Coupon Service", lifespan=lifespan)
@@ -136,7 +133,6 @@ async def admin_open():
 
         await conn.execute("UPDATE coupon_event SET is_open = TRUE")
 
-    logger.info("쿠폰 이벤트 오픈!")
     return success_response({"message": "쿠폰 이벤트가 오픈되었습니다!"})
 
 
@@ -154,7 +150,6 @@ async def admin_reset():
                 config.COUPON_TOTAL,
             )
 
-    logger.info("쿠폰 이벤트 리셋: %d장", config.COUPON_TOTAL)
     return success_response({"message": f"쿠폰 {config.COUPON_TOTAL}장으로 리셋되었습니다"})
 
 
@@ -177,5 +172,4 @@ async def healthz():
 # ──────────────────────────────────────────────
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.error("처리되지 않은 예외: %s", exc, exc_info=True)
     return error_response(500, "서버 내부 오류가 발생했습니다", "INTERNAL_ERROR")
