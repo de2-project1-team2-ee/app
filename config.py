@@ -22,7 +22,7 @@ class Config:
 
     # DB 커넥션 풀
     DB_POOL_MIN: int = int(os.getenv("DB_POOL_MIN", "10"))
-    DB_POOL_MAX: int = int(os.getenv("DB_POOL_MAX", "50"))
+    DB_POOL_MAX: int = int(os.getenv("DB_POOL_MAX", "100"))
 
     @property
     def database_url(self) -> str:

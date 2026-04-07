@@ -3,7 +3,6 @@
 동시성 제어: PostgreSQL UPDATE ... RETURNING + UNIQUE 제약으로 초과 발급 방지
 """
 
-import uuid
 import asyncio
 import logging
 from contextlib import asynccontextmanager
@@ -15,6 +14,7 @@ from fastapi.templating import Jinja2Templates
 
 from config import config
 from database import init_db, close_db, get_pool
+from coupon_queue import start_queue, stop_queue, enqueue_coupon
 
 # ── 로깅 설정 ──
 logging.basicConfig(
@@ -28,8 +28,10 @@ logger = logging.getLogger("hotdeal")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    await start_queue()
     logger.info("핫딜 쿠폰 서비스 시작")
     yield
+    await stop_queue()
     await close_db()
     logger.info("핫딜 쿠폰 서비스 종료")
 
@@ -87,64 +89,14 @@ async def claim_coupon(request: Request):
     if not user_id:
         return error_response(400, "사용자 ID가 필요합니다", "MISSING_USER_ID")
 
-    pool = get_pool()
+    # 큐에 넣고 워커가 처리할 때까지 대기
+    result = await enqueue_coupon(user_id)
 
-    try:
-        async with pool.acquire(timeout=5) as conn:
-            # 1) 이벤트 오픈 여부 빠르게 확인 (락 없이 읽기)
-            event = await conn.fetchrow(
-                "SELECT is_open, remaining FROM coupon_event LIMIT 1"
-            )
-
-            if event is None:
-                return error_response(500, "이벤트가 설정되지 않았습니다", "NO_EVENT")
-            if not event["is_open"]:
-                return error_response(403, "아직 오픈 시간이 아닙니다", "NOT_OPEN")
-            if event["remaining"] <= 0:
-                return error_response(410, "쿠폰이 모두 소진되었습니다", "SOLD_OUT")
-
-            # 2) 원자적 재고 차감 (UPDATE ... WHERE remaining > 0)
-            row = await conn.fetchrow(
-                """
-                UPDATE coupon_event
-                SET remaining = remaining - 1
-                WHERE remaining > 0 AND is_open = TRUE
-                RETURNING remaining
-                """
-            )
-
-            if row is None:
-                # UPDATE 영향 행 0 = 매진 (동시 요청 사이에 소진됨)
-                return error_response(410, "쿠폰이 모두 소진되었습니다", "SOLD_OUT")
-
-            remaining = row["remaining"]
-
-            # 3) 쿠폰 발급 (user_id UNIQUE 제약으로 중복 방지)
-            coupon_code = f"HD-{uuid.uuid4().hex[:8].upper()}"
-            try:
-                await conn.execute(
-                    "INSERT INTO coupon (code, user_id) VALUES ($1, $2)",
-                    coupon_code, user_id,
-                )
-            except Exception:
-                # UNIQUE 위반 = 이미 수령 → 차감 롤백
-                await conn.execute(
-                    "UPDATE coupon_event SET remaining = remaining + 1"
-                )
-                return error_response(409, "이미 쿠폰을 수령했습니다", "ALREADY_CLAIMED")
-
-    except asyncio.TimeoutError:
-        return error_response(503, "서버가 바쁩니다. 잠시 후 다시 시도해주세요", "SERVER_BUSY")
-    except Exception as exc:
-        logger.error("쿠폰 발급 중 예외: %s", exc, exc_info=True)
-        return error_response(500, "서버 내부 오류가 발생했습니다", "INTERNAL_ERROR")
-
-    logger.info("쿠폰 발급: user=%s, code=%s, 잔여=%d", user_id, coupon_code, remaining)
-    return success_response({
-        "coupon_code": coupon_code,
-        "message": "쿠폰이 발급되었습니다!",
-        "remaining": remaining,
-    })
+    if result["success"]:
+        return success_response(result["data"])
+    else:
+        err = result["error"]
+        return error_response(result["status"], err["message"], err["code"])
 
 
 # ──────────────────────────────────────────────
